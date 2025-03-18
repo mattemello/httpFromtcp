@@ -3,26 +3,42 @@ package main
 import (
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"strings"
 )
 
+var port = ":42069"
+
 func main() {
-	file, err := os.Open("./messages.txt")
+
+	liss, err := net.Listen("tcp", port)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 
-	ch := getLinesChannel(file)
+	for {
+		conn, err := liss.Accept()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 
-	for ln := range ch {
-		fmt.Printf("read: %s", ln)
+		fmt.Println("Connection Accepted!!", conn.RemoteAddr())
+
+		ch := getLinesChannel(conn)
+
+		for ln := range ch {
+			fmt.Printf("%s", ln)
+		}
+		conn.Close()
+		fmt.Println("Connection Closed!!")
 	}
 
 }
 
-func getLinesChannel(f io.ReadCloser) <-chan string {
+func getLinesChannel(liss io.ReadCloser) <-chan string {
 	prov := make(chan string)
 
 	go func() {
@@ -30,7 +46,7 @@ func getLinesChannel(f io.ReadCloser) <-chan string {
 		byt = make([]byte, 8)
 		var current string
 		for {
-			n, err := f.Read(byt)
+			n, err := liss.Read(byt)
 			if err != nil || n == 0 {
 				if current != "" {
 					prov <- current
@@ -49,8 +65,6 @@ func getLinesChannel(f io.ReadCloser) <-chan string {
 
 			current += part[len(part)-1]
 		}
-
-		close(prov)
 	}()
 
 	return prov
