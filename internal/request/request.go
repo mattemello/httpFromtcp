@@ -2,7 +2,6 @@ package request
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"strings"
 )
@@ -45,24 +44,21 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 			request.status = done
 		}
 
-		_, err = request.parse(buf)
+		_, err = request.parse(buf[:readIndex])
 		if err != nil {
 			return nil, err
 		}
 
 		readIndex += dim
 
-		if dim == buffSize {
+		if readIndex >= buffSize {
 			buffSize *= 2
 			newBuf := make([]byte, buffSize, buffSize)
 			copy(newBuf, buf)
 			buf = newBuf
 		}
 
-		fmt.Println(request.status)
-
 	}
-
 	return &request, nil
 }
 
@@ -88,7 +84,6 @@ func (r *RequestLine) parseRequestLine(req string) (int, error) {
 }
 
 func (r *Request) parse(data []byte) (int, error) {
-	fmt.Println(r.status)
 	if r.status == intialized {
 		if !strings.Contains(string(data), "\r\n") {
 			return 0, nil
