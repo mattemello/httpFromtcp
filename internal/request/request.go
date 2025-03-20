@@ -8,6 +8,7 @@ import (
 )
 
 var buffSize = 8
+var CRLF = "\r\n"
 
 type status int
 
@@ -96,11 +97,11 @@ func (r *RequestLine) parseRequestLine(req string) (int, error) {
 
 func (r *Request) parse(data []byte) (int, error) {
 	if r.status == intialized {
-		if !strings.Contains(string(data), "\r\n") {
+		if !strings.Contains(string(data), CRLF) {
 			return 0, nil
 		}
 
-		request := strings.Split(string(data), "\r\n")
+		request := strings.Split(string(data), CRLF)
 
 		fmt.Println(request[0])
 		n, err := r.RequestLine.parseRequestLine(request[0])

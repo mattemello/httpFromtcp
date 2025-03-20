@@ -36,12 +36,21 @@ func TestHeader(t *testing.T) {
 	assert.False(t, done)
 
 	headers = NewHeaders()
-	data = []byte("\r\n\r\n")
+	data = []byte("\r\n")
 	n, done, err = headers.Parse(data)
 	require.NoError(t, err)
 	require.NotNil(t, headers)
 	assert.Equal(t, 0, n)
 	assert.True(t, done)
+
+	headers = NewHeaders()
+	data = []byte("Host: localhost:29393\r\nprova: ciao\r\n")
+	n, done, err = headers.Parse(data)
+	require.NoError(t, err)
+	require.NotNil(t, headers)
+	assert.Equal(t, "localhost:29393prova:ciao", headers["Host"])
+	assert.Equal(t, 33, n)
+	assert.False(t, done)
 
 	headers = NewHeaders()
 	data = []byte("Host: localhost:42069")

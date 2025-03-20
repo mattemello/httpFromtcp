@@ -29,7 +29,10 @@ func main() {
 			log.Fatalf("error: %s\n", err.Error())
 		}
 
-		fmt.Printf("\nRequest line:\n- Method: %s\n- Target: %s\n- Version: %s\n\n", requestLine.RequestLine.Method, requestLine.RequestLine.RequestTarget, requestLine.RequestLine.HttpVersion)
+		fmt.Printf("\nRequest line:\n- Method: %s\n- Target: %s\n- Version: %s\n\n",
+			requestLine.RequestLine.Method,
+			requestLine.RequestLine.RequestTarget,
+			requestLine.RequestLine.HttpVersion)
 
 		fmt.Println("Connection to ", conn.RemoteAddr(), "closed")
 	}
