@@ -2,6 +2,7 @@ package request
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"strings"
 )
@@ -42,11 +43,17 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 				return nil, err
 			}
 			request.status = done
+			fmt.Println(request.RequestLine)
+			break
 		}
 
-		_, err = request.parse(buf[:readIndex])
+		_, err = request.parse(buf)
 		if err != nil {
 			return nil, err
+		}
+
+		if request.status == done {
+			break
 		}
 
 		readIndex += dim
@@ -78,6 +85,10 @@ func (r *RequestLine) parseRequestLine(req string) (int, error) {
 
 	r.HttpVersion = strings.Split(subdivision[len(subdivision)-1], "/")[1]
 
+	fmt.Println(subdivision[1])
+	if !strings.Contains(subdivision[1], "/") {
+		return 0, errors.New("No target founded")
+	}
 	r.RequestTarget = subdivision[1]
 
 	return len([]byte(req)), nil
@@ -91,6 +102,7 @@ func (r *Request) parse(data []byte) (int, error) {
 
 		request := strings.Split(string(data), "\r\n")
 
+		fmt.Println(request[0])
 		n, err := r.RequestLine.parseRequestLine(request[0])
 
 		if err != nil {
