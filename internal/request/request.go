@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/mattemello/httpFromtcp/internal/headers"
 )
 
 var buffSize = 8
@@ -13,13 +15,15 @@ var CRLF = "\r\n"
 type status int
 
 const (
-	intialized status = iota + 1
+	requestStateParsingLine status = iota + 1
+	requestStateParsingHeaders
 	done
 )
 
 type Request struct {
-	RequestLine RequestLine
-	status      status
+	RequestLine       RequestLine
+	Headers           headers.Headers
+	statusRequestLine status
 }
 
 type RequestLine struct {
@@ -30,21 +34,21 @@ type RequestLine struct {
 
 func RequestFromReader(reader io.Reader) (*Request, error) {
 	var request Request
-	request.status = intialized
+	request.Headers = headers.NewHeaders()
+	request.statusRequestLine = requestStateParsingLine
 
 	var buf = make([]byte, buffSize, buffSize)
 
 	var readIndex = 0
 
-	for request.status != done {
+	for request.statusRequestLine != done {
 
 		dim, err := reader.Read(buf[readIndex:])
 		if err != nil {
 			if err != io.EOF {
 				return nil, err
 			}
-			request.status = done
-			fmt.Println(request.RequestLine)
+			request.statusRequestLine = done
 			break
 		}
 
@@ -53,7 +57,7 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 			return nil, err
 		}
 
-		if request.status == done {
+		if request.statusRequestLine == done {
 			break
 		}
 
@@ -67,6 +71,7 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 		}
 
 	}
+
 	return &request, nil
 }
 
@@ -81,12 +86,12 @@ func (r *RequestLine) parseRequestLine(req string) (int, error) {
 	r.Method = subdivision[0]
 
 	if subdivision[len(subdivision)-1] != "HTTP/1.1" {
+		fmt.Println(subdivision)
 		return 0, errors.New("Version of http not valid, only 1.1 can be used")
 	}
 
 	r.HttpVersion = strings.Split(subdivision[len(subdivision)-1], "/")[1]
 
-	fmt.Println(subdivision[1])
 	if !strings.Contains(subdivision[1], "/") {
 		return 0, errors.New("No target founded")
 	}
@@ -95,30 +100,70 @@ func (r *RequestLine) parseRequestLine(req string) (int, error) {
 	return len([]byte(req)), nil
 }
 
-func (r *Request) parse(data []byte) (int, error) {
-	if r.status == intialized {
+func (r *Request) parseSingle(data []byte) (int, error) {
+	var n int
+	var err error
+	switch r.statusRequestLine {
+	case requestStateParsingLine:
 		if !strings.Contains(string(data), CRLF) {
 			return 0, nil
 		}
 
 		request := strings.Split(string(data), CRLF)
 
-		fmt.Println(request[0])
-		n, err := r.RequestLine.parseRequestLine(request[0])
+		n, err = r.RequestLine.parseRequestLine(request[0])
 
 		if err != nil {
 			return 0, err
 		} else if n == 0 {
 			return 0, nil
 		}
+		n += 2
 
-		r.status = done
-	} else if r.status == done {
+		r.statusRequestLine = requestStateParsingHeaders
+		break
+
+	case requestStateParsingHeaders:
+		var parsedAll bool
+
+		n, parsedAll, err = r.Headers.Parse(data)
+		if err != nil {
+			return 0, err
+		}
+		// fmt.Println(n, string(data[n:]))
+		if parsedAll {
+			r.statusRequestLine = done
+		}
+
+		break
+
+	case done:
 		return 0, errors.New("error: trying to read data in a done state")
-	} else {
 
+	default:
 		return 0, errors.New("error: unkown state")
+
 	}
 
-	return 0, nil
+	return n, nil
+}
+
+var totalByteParsed = 0
+
+func (r *Request) parse(data []byte) (int, error) {
+
+	for r.statusRequestLine != done {
+		n, err := r.parseSingle(data[totalByteParsed:])
+		if err != nil {
+			return 0, err
+		}
+
+		if n == 0 {
+			break
+		}
+
+		totalByteParsed += n
+	}
+
+	return totalByteParsed, nil
 }

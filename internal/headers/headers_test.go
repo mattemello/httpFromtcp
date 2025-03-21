@@ -28,6 +28,17 @@ func TestHeader(t *testing.T) {
 	assert.False(t, done)
 
 	headers = NewHeaders()
+	data = []byte("HoSt: localhost:42069\r\n\r\n")
+	n, done, err = headers.Parse(data)
+	data = []byte("HoSt: theprimeagen.org\r\n\r\n")
+	n, done, err = headers.Parse(data)
+	require.NoError(t, err)
+	require.NotNil(t, headers)
+	assert.Equal(t, "localhost:42069, theprimeagen.org", headers["host"])
+	assert.Equal(t, 24, n)
+	assert.False(t, done)
+
+	headers = NewHeaders()
 	data = []byte("H©st: localhost:42069\r\n\r\n")
 	n, done, err = headers.Parse(data)
 	require.Error(t, err)
