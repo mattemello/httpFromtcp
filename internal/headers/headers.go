@@ -2,6 +2,8 @@ package headers
 
 import (
 	"errors"
+	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -29,7 +31,16 @@ func (h Headers) Parse(data []byte) (int, bool, error) {
 
 	str := strings.SplitN(prestr, ":", 2)
 
-	h[str[0]] = str[1]
+	if b, err := regexp.MatchString("^[!#$%&'*+/\\.\\^_`|~A-Za-z0-9.]*$", str[0]); !b || err != nil {
+		if err != nil {
+			return 0, false, err
+		}
+
+		fmt.Println(b)
+		return 0, false, errors.New("The fild name is not good, " + str[0])
+	}
+
+	h[strings.ToLower(str[0])] = str[1]
 
 	return len(prestr) + 3, false, nil
 }
