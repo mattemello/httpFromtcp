@@ -2,7 +2,6 @@ package request
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"strings"
 
@@ -82,13 +81,11 @@ func (r *RequestLine) parseRequestLine(req string) (int, error) {
 	var subdivision = strings.Split(req, " ")
 
 	if subdivision[0] != strings.ToUpper(subdivision[0]) {
-		fmt.Println(subdivision)
 		return 0, errors.New("Method not valid")
 	}
 
 	r.Method = subdivision[0]
 
-	fmt.Println(subdivision)
 	if subdivision[len(subdivision)-1] != "HTTP/1.1" {
 		return 0, errors.New("Version of http not valid, only 1.1 can be used")
 	}
@@ -127,11 +124,9 @@ func (r *Request) parseSingle(data []byte) (int, error) {
 		break
 
 	case requestStateParsingHeaders:
-		fmt.Println(string(data), len(data))
 		var parsedAll bool
 
 		n, parsedAll, err = r.Headers.Parse(data)
-		fmt.Println("here")
 		if err != nil {
 			return 0, err
 		}
