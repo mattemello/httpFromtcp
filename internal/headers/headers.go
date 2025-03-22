@@ -2,7 +2,6 @@ package headers
 
 import (
 	"errors"
-	"fmt"
 	"regexp"
 	"strings"
 )
@@ -12,7 +11,6 @@ type Headers map[string]string
 const CRLF = "\r\n"
 
 func (h Headers) Parse(data []byte) (int, bool, error) {
-	fmt.Println(string(data))
 	prestr := string(data)
 	if !strings.Contains(prestr, CRLF) {
 		return 0, false, nil
