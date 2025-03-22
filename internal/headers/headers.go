@@ -10,6 +10,12 @@ type Headers map[string]string
 
 const CRLF = "\r\n"
 
+func (h Headers) Get(field string) string {
+	field = strings.ToLower(field)
+
+	return h[field]
+}
+
 func (h Headers) Parse(data []byte) (int, bool, error) {
 	prestr := string(data)
 	if !strings.Contains(prestr, CRLF) {

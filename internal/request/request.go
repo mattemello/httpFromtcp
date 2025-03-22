@@ -3,12 +3,14 @@ package request
 import (
 	"errors"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/mattemello/httpFromtcp/internal/headers"
 )
 
-var buffSize = 8
+const buffSize = 8
+
 var CRLF = "\r\n"
 
 type status int
@@ -16,12 +18,14 @@ type status int
 const (
 	requestStateParsingLine status = iota + 1
 	requestStateParsingHeaders
+	requestStateParsingBody
 	done
 )
 
 type Request struct {
 	RequestLine       RequestLine
 	Headers           headers.Headers
+	Body              []byte
 	statusRequestLine status
 }
 
@@ -40,6 +44,7 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 
 	var readIndex = 0
 	var parseIndex = 0
+	sizeBuf := buffSize
 
 	for request.statusRequestLine != done {
 
@@ -49,10 +54,15 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 				return nil, err
 			}
 			request.statusRequestLine = done
+			leng, _ := strconv.Atoi(request.Headers.Get("Content-Length"))
+			if leng > len(request.Body) {
+				return &request, errors.New("Invalid lengh, the lenght in the header is greater of the lenght of the body")
+			}
 			break
 		}
+		readIndex += dim
 
-		parsedCount, err := request.parse(buf[parseIndex:])
+		parsedCount, err := request.parse(buf[parseIndex:readIndex])
 		if err != nil {
 			return nil, err
 		}
@@ -61,12 +71,11 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 			break
 		}
 
-		readIndex += dim
 		parseIndex += parsedCount
 
 		if readIndex >= buffSize {
-			buffSize *= 2
-			newBuf := make([]byte, buffSize, buffSize)
+			sizeBuf += 10
+			newBuf := make([]byte, sizeBuf, sizeBuf)
 			copy(newBuf, buf)
 			buf = newBuf
 		}
@@ -131,6 +140,38 @@ func (r *Request) parseSingle(data []byte) (int, error) {
 			return 0, err
 		}
 		if parsedAll {
+			r.statusRequestLine = requestStateParsingBody
+		}
+
+		break
+
+	case requestStateParsingBody:
+		leng := r.Headers.Get("Content-Length")
+
+		if leng == "" {
+			r.statusRequestLine = done
+			break
+		}
+		if !strings.Contains(string(data), CRLF) {
+			return 0, nil
+		}
+
+		request := strings.Split(string(data), CRLF)[1]
+
+		dim, err := strconv.Atoi(leng)
+		if err != nil {
+			return 0, err
+		}
+
+		if dim != len(request) {
+			break
+		} else if dim < len(request) {
+			return 0, errors.New("dimension not valid")
+		}
+
+		r.Body = append(r.Body, []byte(request)...)
+
+		if len(r.Body) == dim {
 			r.statusRequestLine = done
 		}
 
