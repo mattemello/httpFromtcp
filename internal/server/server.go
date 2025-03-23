@@ -3,8 +3,9 @@ package server
 import (
 	"log"
 	"net"
-	"os"
 	"strconv"
+
+	"github.com/mattemello/httpFromtcp/internal/response"
 )
 
 type Server struct {
@@ -44,7 +45,6 @@ func (s *Server) listen() {
 		conn, err := s.Connection.Accept()
 		if err != nil {
 			s.Close()
-			os.Exit(1)
 		}
 
 		go s.handle(conn)
@@ -53,9 +53,9 @@ func (s *Server) listen() {
 
 func (s *Server) handle(conn net.Conn) {
 
-	message := []byte("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nHello World!\n")
-
-	_, _ = conn.Write(message)
+	headers := response.GetDefaultHeaders(0)
+	response.WriteStatusLine(conn, 200)
+	response.WriteHeaders(conn, headers)
 
 	conn.Close()
 }
