@@ -24,7 +24,12 @@ type Server struct {
 	on         bool
 }
 
-func WriteHandlerError(w io.Writer)
+func WriteHandlerError(w io.Writer, handlerError HandlerError) {
+	defHeader := response.GetDefaultHeaders(len(handlerError.Message))
+	response.WriteStatusLine(w, handlerError.StatusCode)
+	response.WriteHeaders(w, defHeader)
+	w.Write([]byte(handlerError.Message))
+}
 
 func Serve(port int, Hander Handler) (*Server, error) {
 	portString := strconv.Itoa(port)
@@ -67,17 +72,38 @@ func (s *Server) handle(conn net.Conn, handler Handler) {
 
 	req, err := request.RequestFromReader(conn)
 	if err != nil {
-		//todo: respond with an error
+		log.Panic("there is something bad", err)
 	}
 
-	var buffer bytes.Buffer
+	var buf bytes.Buffer
 
-	erro := handler(&buffer, req)
-	if erro != nil {
-		//todo: respond with an error
+	erro := handler(&buf, req)
+	if err != nil {
+		WriteHandlerError(conn, *erro)
+		conn.Close()
+		return
 	}
 
-	defHandler := response.GetDefaultHeaders()
+	defHeader := response.GetDefaultHeaders(buf.Len())
+	response.WriteStatusLine(conn, response.Ok)
+	response.WriteHeaders(conn, defHeader)
+	var read []byte
+	read = make([]byte, 10)
+	for {
+		num, err := buf.Read(read)
+		if err != nil {
+			if err == io.EOF && num > 0 {
+				_, _ = conn.Write(read)
+			}
+
+			break
+		}
+
+		num, err = conn.Write(read)
+		if err != nil {
+			break
+		}
+	}
 
 	conn.Close()
 }
