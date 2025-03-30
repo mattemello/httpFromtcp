@@ -2,6 +2,7 @@ package request
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"strconv"
 	"strings"
@@ -49,6 +50,7 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 	for request.statusRequestLine != done {
 
 		dim, err := reader.Read(buf[readIndex:])
+		fmt.Println(dim, err)
 		if err != nil {
 			if err != io.EOF {
 				return nil, err
@@ -78,6 +80,10 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 			newBuf := make([]byte, sizeBuf, sizeBuf)
 			copy(newBuf, buf)
 			buf = newBuf
+		}
+
+		if dim < 10 && dim != buffSize {
+			break
 		}
 
 	}

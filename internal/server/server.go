@@ -22,13 +22,14 @@ type Server struct {
 	Connection net.Listener
 	Port       int
 	on         bool
+	Handler    Handler
 }
 
-func WriteHandlerError(w io.Writer, handlerError HandlerError) {
-	defHeader := response.GetDefaultHeaders(len(handlerError.Message))
-	response.WriteStatusLine(w, handlerError.StatusCode)
+func (errHand HandlerError) WriteHandlerError(w io.Writer) {
+	defHeader := response.GetDefaultHeaders(len(errHand.Message))
+	response.WriteStatusLine(w, errHand.StatusCode)
 	response.WriteHeaders(w, defHeader)
-	w.Write([]byte(handlerError.Message))
+	w.Write([]byte(errHand.Message))
 }
 
 func Serve(port int, Hander Handler) (*Server, error) {
@@ -38,9 +39,9 @@ func Serve(port int, Hander Handler) (*Server, error) {
 		return nil, err
 	}
 
-	server := &Server{Connection: liss, Port: port, on: false}
+	server := &Server{Connection: liss, Port: port, on: false, Handler: Hander}
 
-	go server.listen(Hander)
+	go server.listen()
 
 	return server, nil
 }
@@ -56,54 +57,48 @@ func (s *Server) Close() error {
 	return nil
 }
 
-func (s *Server) listen(handler Handler) {
+func (s *Server) listen() {
 	log.Println("> Start the listening of the server")
 	for !s.on {
 		conn, err := s.Connection.Accept()
 		if err != nil {
-			s.Close()
+			if !s.on {
+				return
+			}
+			log.Printf("Can't accept the connection: %v", err)
+			continue
 		}
 
-		go s.handle(conn, handler)
+		go s.handle(conn)
 	}
 }
 
-func (s *Server) handle(conn net.Conn, handler Handler) {
+func (s *Server) handle(conn net.Conn) {
+
+	defer conn.Close()
 
 	req, err := request.RequestFromReader(conn)
 	if err != nil {
-		log.Panic("there is something bad", err)
-	}
+		erroH := &HandlerError{
+			StatusCode: response.BadRequest,
+			Message:    err.Error(),
+		}
 
-	var buf bytes.Buffer
-
-	erro := handler(&buf, req)
-	if err != nil {
-		WriteHandlerError(conn, *erro)
-		conn.Close()
+		erroH.WriteHandlerError(conn)
 		return
 	}
 
-	defHeader := response.GetDefaultHeaders(buf.Len())
-	response.WriteStatusLine(conn, response.Ok)
-	response.WriteHeaders(conn, defHeader)
-	var read []byte
-	read = make([]byte, 10)
-	for {
-		num, err := buf.Read(read)
-		if err != nil {
-			if err == io.EOF && num > 0 {
-				_, _ = conn.Write(read)
-			}
+	var buf = bytes.NewBuffer([]byte{})
 
-			break
-		}
-
-		num, err = conn.Write(read)
-		if err != nil {
-			break
-		}
+	erroHand := s.Handler(buf, req)
+	if erroHand != nil {
+		erroHand.WriteHandlerError(conn)
+		return
 	}
 
-	conn.Close()
+	response.WriteStatusLine(conn, response.Ok)
+	defHeader := response.GetDefaultHeaders(buf.Len())
+	response.WriteHeaders(conn, defHeader)
+	var read = buf.Bytes()
+	conn.Write(read)
 }
