@@ -54,5 +54,7 @@ func WriteHeaders(w io.Writer, headers headers.Headers) error {
 		}
 	}
 
+	w.Write([]byte("\r\n"))
+
 	return nil
 }

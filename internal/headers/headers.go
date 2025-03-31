@@ -22,7 +22,7 @@ func (h Headers) Parse(data []byte) (int, bool, error) {
 		return 0, false, nil
 	}
 	if strings.Index(prestr, CRLF) == 0 {
-		return 0, true, nil
+		return 2, true, nil
 	}
 
 	prestr = strings.Split(prestr, "\r\n")[0]

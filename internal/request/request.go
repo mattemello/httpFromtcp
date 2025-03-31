@@ -2,7 +2,6 @@ package request
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"strconv"
 	"strings"
@@ -50,7 +49,6 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 	for request.statusRequestLine != done {
 
 		dim, err := reader.Read(buf[readIndex:])
-		fmt.Println(dim, err)
 		if err != nil {
 			if err != io.EOF {
 				return nil, err
@@ -82,7 +80,10 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 			buf = newBuf
 		}
 
-		if dim < 10 && dim != buffSize {
+		leng, _ := strconv.Atoi(request.Headers.Get("Content-Length"))
+
+		if leng != 0 && leng == len(request.Body) {
+			request.statusRequestLine = done
 			break
 		}
 
@@ -158,11 +159,8 @@ func (r *Request) parseSingle(data []byte) (int, error) {
 			r.statusRequestLine = done
 			break
 		}
-		if !strings.Contains(string(data), CRLF) {
-			return 0, nil
-		}
 
-		request := strings.Split(string(data), CRLF)[1]
+		request := string(data)
 
 		dim, err := strconv.Atoi(leng)
 		if err != nil {
