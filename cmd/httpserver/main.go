@@ -95,6 +95,26 @@ func handler(w *response.Writer, req *request.Request) {
 
 	}
 
+	if strings.HasPrefix(req.RequestLine.RequestTarget, "/video") {
+
+		file, err := os.ReadFile("./assets/vim.mp4")
+		if err != nil {
+			log.Println("Can't read the file", err)
+			return
+		}
+
+		w.WriteStatusLine(response.Ok)
+		header := headers.NewHeaders()
+		header.Add("Connection", "video/mp4")
+		header.Add("Content-Type", "text/plain")
+		header.Add("Content-Length", strconv.Itoa(len(file)))
+		w.WriteHeaders(header)
+
+		w.WriteBody(file)
+
+		return
+	}
+
 	const field = "Content-Type"
 	const value = "text-html"
 
