@@ -1,13 +1,17 @@
 # HTTP form TCP
-This project helped me to understand how the http1.1 protocl works. 
+This is a personal project where I implement a HTTP protocol from scratch on top of a TCP server. 
 
-I created evreything in this project (NO sloppy AI used).
+## Why?
 
-It was fun, and cool.
+- I used this project to experiment what a HTTP protocol is, and how you should do it.
+- I studied how network works and how to implement HTTP1.1 with golang and created it with only my own effort (no AI used).
+- I wanted to prove to myself that I could do it. 
 
-## Info
+These are the reason that led me to create this project.
 
-The part in the cmd folder are the server for testing that I used, the real Thing is in the internal folder.
-I didn't want to make it over complicated, so I didn't subdivaded all the function in smaller func.
+## Contributing
+
+If you want to contributing to this project or help me optimizing this project you can create a Issue or create a pull
+request. It would make me happy.
 
 Project inspiration -> [boot.dev Theprimeagen course](https://www.boot.dev/courses/learn-http-protocol-golang)
