@@ -1,11 +1,14 @@
 package main
 
 import (
+	"crypto/sha256"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -42,7 +45,10 @@ func handler(w *response.Writer, req *request.Request) {
 		header.Add("Connection", "close")
 		header.Add("Content-Type", "text/plain")
 		header.Add("Transfer-Encoding", "chunked")
+		header.Add("Trailer", "X-Content-SHA256, X-Content-Length")
 		w.WriteHeaders(header)
+
+		trailer := headers.NewHeaders()
 
 		resp, err := http.Get("https://httpbin.org" + destination)
 		if err != nil {
@@ -50,24 +56,40 @@ func handler(w *response.Writer, req *request.Request) {
 		}
 
 		var buff = make([]byte, 1024)
+		var allBuff = make([]byte, 0)
 
 		for {
 			n, err := resp.Body.Read(buff)
 			if err != nil {
 				if err == io.EOF {
-					w.WriteChunkBodyDone()
+					hasMessage := sha256.Sum256(allBuff)
+					trailer.Add("X-Content-SHA256", fmt.Sprintf("%x", hasMessage))
+					trailer.Add("X-Content-Length", strconv.Itoa(len(allBuff)))
+
+					w.WriteTrailers(trailer)
+
 					return
 				}
 				os.Exit(1)
 			}
 
 			if n == 0 {
-				w.WriteChunkBodyDone()
+				hasMessage := sha256.Sum256(allBuff)
+				trailer.Add("X-Content-SHA256", fmt.Sprintf("%x", hasMessage))
+				trailer.Add("X-Content-Length", strconv.Itoa(len(allBuff)))
+
+				w.WriteTrailers(trailer)
+
 				return
 
 			}
 
 			_, err = w.WriteChunkBody(buff[:n])
+
+			copyBuf := allBuff
+			allBuff = make([]byte, len(allBuff)+n)
+			copy(allBuff, copyBuf)
+			allBuff = append(allBuff, buff[:n]...)
 
 		}
 

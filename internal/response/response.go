@@ -164,3 +164,18 @@ func (w *Writer) WriteChunkBodyDone() (int, error) {
 
 	return n + n1, err
 }
+
+func (w *Writer) WriteTrailers(header headers.Headers) error {
+
+	hexNumber := fmt.Sprintf("%x", 0)
+	_, _ = w.Conn.Write([]byte(hexNumber + "/r/n"))
+
+	for key, elem := range header {
+		_, err := w.Conn.Write([]byte(key + ":" + elem + "\r\n"))
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
