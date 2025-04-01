@@ -1,9 +1,12 @@
 package main
 
 import (
+	"io"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/mattemello/httpFromtcp/internal/headers"
@@ -30,6 +33,45 @@ func main() {
 }
 
 func handler(w *response.Writer, req *request.Request) {
+
+	if strings.HasPrefix(req.RequestLine.RequestTarget, "/httpbin") {
+		destination := strings.TrimPrefix(req.RequestLine.RequestTarget, "/httpbin")
+
+		w.WriteStatusLine(response.Ok)
+		header := headers.NewHeaders()
+		header.Add("Connection", "close")
+		header.Add("Content-Type", "text/plain")
+		header.Add("Transfer-Encoding", "chunked")
+		w.WriteHeaders(header)
+
+		resp, err := http.Get("https://httpbin.org" + destination)
+		if err != nil {
+			os.Exit(1)
+		}
+
+		var buff = make([]byte, 1024)
+
+		for {
+			n, err := resp.Body.Read(buff)
+			if err != nil {
+				if err == io.EOF {
+					w.WriteChunkBodyDone()
+					return
+				}
+				os.Exit(1)
+			}
+
+			if n == 0 {
+				w.WriteChunkBodyDone()
+				return
+
+			}
+
+			_, err = w.WriteChunkBody(buff[:n])
+
+		}
+
+	}
 
 	const field = "Content-Type"
 	const value = "text-html"
