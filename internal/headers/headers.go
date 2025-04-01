@@ -63,6 +63,10 @@ func (h Headers) Parse(data []byte) (int, bool, error) {
 	return n, false, nil
 }
 
+func (h Headers) Add(field, value string) {
+	h[field] = value
+}
+
 func NewHeaders() Headers {
 	return make(Headers)
 }

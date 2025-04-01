@@ -1,13 +1,14 @@
 package main
 
 import (
-	"io"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/mattemello/httpFromtcp/internal/headers"
 	"github.com/mattemello/httpFromtcp/internal/request"
+	"github.com/mattemello/httpFromtcp/internal/response"
 	"github.com/mattemello/httpFromtcp/internal/server"
 )
 
@@ -28,25 +29,109 @@ func main() {
 	log.Println("Server gracefully stopped")
 }
 
-func handler(w io.Writer, req *request.Request) *server.HandlerError {
+func handler(w *response.Writer, req *request.Request) {
+
+	const field = "Content-Type"
+	const value = "text-html"
 
 	switch req.RequestLine.RequestTarget {
-
 	case "/yourproblem":
-		return &server.HandlerError{
-			StatusCode: 400,
-			Message:    "Your problem is not my problem\n",
+		errStatusLine := w.WriteStatusLine(response.BadRequest)
+		if errStatusLine != nil {
+			log.Println("Error in the status Line", errStatusLine)
 		}
+
+		header := headers.NewHeaders()
+		header = response.GetDefaultHeaders(len(yourproblem))
+		header.Add(field, value)
+
+		errHeader := w.WriteHeaders(header)
+		if errHeader != nil {
+			log.Println("Error in the status Line", errHeader)
+		}
+
+		_, err := w.WriteBody([]byte(yourproblem))
+		if err != nil {
+			log.Println("Error in the status Line", err)
+		}
+		break
 
 	case "/myproblem":
-		return &server.HandlerError{
-			StatusCode: 500,
-			Message:    "Woopsie, my bad\n",
+		errStatusLine := w.WriteStatusLine(response.ServerError)
+		if errStatusLine != nil {
+			log.Println("Error in the status Line", errStatusLine)
 		}
+
+		header := headers.NewHeaders()
+		header = response.GetDefaultHeaders(len(myproblem))
+		header.Add(field, value)
+
+		errHeader := w.WriteHeaders(header)
+		if errHeader != nil {
+			log.Println("Error in the status Line", errHeader)
+		}
+
+		_, err := w.WriteBody([]byte(myproblem))
+		if err != nil {
+			log.Println("Error in the status Line", err)
+		}
+		break
+	default:
+		errStatusLine := w.WriteStatusLine(response.Ok)
+		if errStatusLine != nil {
+			log.Println("Error in the status Line", errStatusLine)
+		}
+
+		header := headers.NewHeaders()
+		header = response.GetDefaultHeaders(len(allRight))
+		header.Add(field, value)
+
+		errHeader := w.WriteHeaders(header)
+		if errHeader != nil {
+			log.Println("Error in the status Line", errHeader)
+		}
+
+		_, err := w.WriteBody([]byte(allRight))
+		if err != nil {
+			log.Println("Error in the status Line", err)
+		}
+		break
+
 	}
 
-	w.Write([]byte("All good, frfr\n"))
-
-	return nil
-
 }
+
+const yourproblem = `
+<html>
+  <head>
+    <title>400 Bad Request</title>
+  </head>
+  <body>
+    <h1>Bad Request</h1>
+    <p>Your request honestly kinda sucked.</p>
+  </body>
+</html>`
+
+const myproblem = `
+<html>
+  <head>
+    <title>500 Internal Server Error</title>
+  </head>
+  <body>
+    <h1>Internal Server Error</h1>
+    <p>Okay, you know what? This one is on me.</p>
+  </body>
+</html>
+`
+
+const allRight = `
+<html>
+  <head>
+    <title>200 OK</title>
+  </head>
+  <body>
+    <h1>Success!</h1>
+    <p>Your request was an absolute banger.</p>
+  </body>
+</html>
+`

@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"io"
 	"log"
 	"net"
@@ -11,7 +10,7 @@ import (
 	"github.com/mattemello/httpFromtcp/internal/response"
 )
 
-type Handler func(w io.Writer, req *request.Request) *HandlerError
+type Handler func(w *response.Writer, req *request.Request)
 
 type HandlerError struct {
 	StatusCode response.StatusCode
@@ -88,17 +87,9 @@ func (s *Server) handle(conn net.Conn) {
 		return
 	}
 
-	var buf = bytes.NewBuffer([]byte{})
+	var writer = response.NewWriter()
 
-	erroHand := s.Handler(buf, req)
-	if erroHand != nil {
-		erroHand.WriteHandlerError(conn)
-		return
-	}
+	writer.Conn = conn
 
-	response.WriteStatusLine(conn, response.Ok)
-	defHeader := response.GetDefaultHeaders(buf.Len())
-	response.WriteHeaders(conn, defHeader)
-	var read = buf.Bytes()
-	conn.Write(read)
+	s.Handler(writer, req)
 }
